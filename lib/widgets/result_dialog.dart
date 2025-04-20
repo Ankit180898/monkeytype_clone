@@ -3,12 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../controllers/theme_controller.dart';
 import '../controllers/typing_test_controller.dart';
 
 class ResultsScreen extends StatelessWidget {
   final TypingTestController typingController = Get.find();
-  final ThemeController themeController = Get.find();
 
   ResultsScreen({super.key});
 
@@ -23,6 +21,7 @@ class ResultsScreen extends StatelessWidget {
       color: color,
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

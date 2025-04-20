@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 import 'package:monkeytype_clone/controllers/theme_controller.dart';
 import 'package:monkeytype_clone/views/typing_test_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-  ));
+  await dotenv.load(fileName: 'dotenv.txt');
+  SystemChrome.setSystemUIOverlayStyle(
+    SystemUiOverlayStyle(statusBarColor: Colors.transparent),
+  );
   runApp(MonkeyTypeClone());
 }
 
 class MonkeyTypeClone extends StatelessWidget {
-  final ThemeController themeController = Get.put(ThemeController());
+  const MonkeyTypeClone({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final ThemeController themeController = Get.put(ThemeController());
+
     return GetMaterialApp(
       title: 'MonkeyType Clone',
       debugShowCheckedModeBanner: false,
@@ -29,9 +33,7 @@ class MonkeyTypeClone extends StatelessWidget {
             displayColor: Colors.black,
           ),
         ),
-        appBarTheme: AppBarTheme(
-          systemOverlayStyle: SystemUiOverlayStyle.dark,
-        ),
+        appBarTheme: AppBarTheme(systemOverlayStyle: SystemUiOverlayStyle.dark),
       ),
       darkTheme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: Color(0xFF2C2E31),
