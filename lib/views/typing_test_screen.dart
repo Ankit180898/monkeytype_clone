@@ -44,7 +44,7 @@ class TypingTestScreen extends StatelessWidget {
     // Adjust font sizes based on screen size
     final double headerFontSize =
         isSmallScreen ? 14 : (isMediumScreen ? 16 : 18);
-    final double textFontSize = isSmallScreen ? 32 : (isMediumScreen ? 40 : 48);
+    final double textFontSize = isSmallScreen ? 32 : (isMediumScreen ? 32 : 48);
     final double optionFontSize = isSmallScreen ? 12 : 14;
 
     return KeyboardShortcutsHandler(
@@ -124,7 +124,7 @@ class TypingTestScreen extends StatelessWidget {
                   SizedBox(height: isSmallScreen ? 16 : 32),
                   _buildLanguageSelector(optionFontSize),
                   SizedBox(height: isSmallScreen ? 16 : 32),
-                  _buildTypingArea(context, textFontSize),
+                  _buildTypingArea(context),
                   const SizedBox(height: 24),
                   _buildRestartButton(),
                   const Spacer(),
@@ -315,224 +315,212 @@ class TypingTestScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTypingArea(BuildContext context, double fontSize) {
-    return Obx(() {
-      final typingController = Get.find<TypingTestController>();
+Widget _buildTypingArea(BuildContext context) {
+  // Use smaller font size like MonkeyType
+  final double fontSize = 18.0;
+  
+  return Obx(() {
+    final typingController = Get.find<TypingTestController>();
 
-      if (typingController.isTestComplete.value) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          showDialog(context: context, builder: (context) => ResultsScreen());
-        });
-      }
+    if (typingController.isTestComplete.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog(context: context, builder: (context) => ResultsScreen());
+      });
+    }
 
-      String targetText = typingController.currentText.value;
-      String typed = typingController.typedText.value;
-      int currentLineIndex = typingController.currentLineIndex.value;
+    String targetText = typingController.currentText.value;
+    String typed = typingController.typedText.value;
+    int currentLineIndex = typingController.currentLineIndex.value;
 
-      // Calculate container width and update controller
-      double containerWidth = MediaQuery.of(context).size.width - 48;
-      typingController.updateContainerWidth(containerWidth);
+    // Calculate container width and update controller
+    double containerWidth = MediaQuery.of(context).size.width - 48;
+    typingController.updateContainerWidth(containerWidth);
 
-      // Handle empty lines case
-      if (typingController.lines.isEmpty && targetText.isNotEmpty) {
-        // Existing fallback code
-        return Column(/* Your existing fallback code */);
-      }
-
-      // Calculate visible lines: previous, current, and next line (for smoother transitions)
-      List<Widget> visibleLines = [];
-
-      // Get indices for previous, current, and next line
-      int prevLineIndex = currentLineIndex - 1;
-      int nextLineIndex = currentLineIndex + 1;
-
-      // Calculate starting character indices for each line
-      int currentLineStartIndex = 0;
-      if (currentLineIndex > 0) {
-        currentLineStartIndex = typingController.lines
-            .sublist(0, currentLineIndex)
-            .fold(0, (sum, line) => sum + line.length);
-      }
-
-      // Previous line (dimmed)
-      if (prevLineIndex >= 0 && prevLineIndex < typingController.lines.length) {
-        String prevLine = typingController.lines[prevLineIndex];
-        int prevLineStartIndex = currentLineStartIndex - prevLine.length;
-        String typedForPrevLine =
-            typed.length > prevLineStartIndex
-                ? typed.substring(
-                  prevLineStartIndex,
-                  min(typed.length, prevLineStartIndex + prevLine.length),
-                )
-                : '';
-
-        visibleLines.add(
-          RichText(
-            text: TextSpan(
-              children: _buildTextSpans(prevLine, typedForPrevLine, fontSize),
-              style: monoTextStyle(
-                fontSize: fontSize,
-                color: Colors.white24, // More dimmed than current
-              ).copyWith(height: 1.5),
-            ),
-          ),
-        );
-      }
-
-      // Current line (focus)
-      if (currentLineIndex < typingController.lines.length) {
-        String currentLine = typingController.lines[currentLineIndex];
-        String typedForCurrentLine =
-            typed.length > currentLineStartIndex
-                ? typed.substring(
-                  currentLineStartIndex,
-                  min(typed.length, currentLineStartIndex + currentLine.length),
-                )
-                : '';
-
-        visibleLines.add(
-          RichText(
-            text: TextSpan(
-              children: _buildTextSpans(
-                currentLine,
-                typedForCurrentLine,
-                fontSize,
-              ),
-              style: monoTextStyle(
-                fontSize: fontSize,
-                color: Colors.white70, // Brighter than previous
-              ).copyWith(height: 1.5),
-            ),
-          ),
-        );
-      }
-
-      // Next line (slightly dimmed)
-      if (nextLineIndex < typingController.lines.length) {
-        String nextLine = typingController.lines[nextLineIndex];
-        visibleLines.add(
-          RichText(
-            text: TextSpan(
-              children: _buildTextSpans(
-                nextLine,
-                '', // Not typed yet
-                fontSize,
-              ),
-              style: monoTextStyle(
-                fontSize: fontSize,
-                color:
-                    Colors
-                        .white38, // Dimmer than current, brighter than previous
-              ).copyWith(height: 1.5),
-            ),
-          ),
-        );
-      }
-
+    // Handle empty lines case
+    if (typingController.lines.isEmpty && targetText.isNotEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Progress counter
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              "${typed.length}/${targetText.length}",
-              style: monoTextStyle(
-                color: Colors.amber,
-                fontSize: fontSize - 16,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Typing area with fixed height for multiple lines
-          SizedBox(
-            height: fontSize * 1.5 * 3, // Height for 3 lines
-            child: Stack(
-              children: [
-                SingleChildScrollView(
-                  controller: typingController.scrollController,
-                  physics: const ClampingScrollPhysics(),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: visibleLines,
-                    ),
-                  ),
-                ),
-                Positioned.fill(
-                  child: TextField(
-                    controller: typingController.textFieldController,
-                    onChanged: typingController.checkTypedText,
-                    focusNode: _focusNode,
-                    autofocus: true,
-                    cursorColor: Colors.transparent,
-                    decoration: const InputDecoration(border: InputBorder.none),
-                    style: TextStyle(
-                      color: Colors.transparent,
-                      fontSize: fontSize,
-                      fontFamily: 'RobotoMono',
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          Text(
+            "Loading text...",
+            style: TextStyle(color: Colors.white60),
           ),
         ],
       );
-    });
-  }
-
-  List<TextSpan> _buildTextSpans(
-    String targetText,
-    String typed,
-    double fontSize,
-  ) {
-    List<TextSpan> spans = [];
-
-    for (int i = 0; i < targetText.length; i++) {
-      if (i < typed.length && typed[i] != targetText[i]) {
-        spans.add(
-          TextSpan(
-            text: targetText[i],
-            style: monoTextStyle(
-              fontSize: fontSize,
-              color: const Color(0xFFe06c75),
-            ).copyWith(backgroundColor: const Color(0x40e06c75)),
-          ),
-        );
-      } else if (i < typed.length) {
-        spans.add(
-          TextSpan(
-            text: targetText[i],
-            style: monoTextStyle(fontSize: fontSize, color: Colors.white),
-          ),
-        );
-      } else if (i == typed.length) {
-        spans.add(
-          TextSpan(
-            text: targetText[i],
-            style: monoTextStyle(
-              fontSize: fontSize,
-              color: Colors.amber,
-            ).copyWith(backgroundColor: Colors.white10),
-          ),
-        );
-      } else {
-        spans.add(
-          TextSpan(
-            text: targetText[i],
-            style: monoTextStyle(fontSize: fontSize, color: Colors.white30),
-          ),
-        );
-      }
     }
 
-    return spans;
+    // Calculate visible lines like MonkeyType
+    List<Widget> visibleLines = [];
+    
+    // Show more lines like MonkeyType (2 previous, current, 3 next for more context)
+    int firstVisibleLine = max(0, currentLineIndex - 2);
+    int lastVisibleLine = min(typingController.lines.length - 1, currentLineIndex + 3);
+
+    // Calculate starting character indices
+    Map<int, int> lineStartIndices = {};
+    int charCount = 0;
+    
+    for (int i = 0; i < typingController.lines.length; i++) {
+      lineStartIndices[i] = charCount;
+      charCount += typingController.lines[i].length;
+    }
+
+    // Create each visible line with proper styling
+    for (int i = firstVisibleLine; i <= lastVisibleLine; i++) {
+      String line = typingController.lines[i];
+      int lineStartIndex = lineStartIndices[i] ?? 0;
+      
+      // Determine typed text for this line
+      String typedForLine = '';
+      if (typed.length > lineStartIndex) {
+        typedForLine = typed.substring(
+          lineStartIndex,
+          min(typed.length, lineStartIndex + line.length),
+        );
+      }
+
+      // Calculate opacity based on distance from current line (MonkeyType style)
+      double opacity;
+      if (i == currentLineIndex) {
+        opacity = 0.9; // Current line - most visible
+      } else if (i < currentLineIndex) {
+        opacity = 0.3; // Previous lines - dimmed
+      } else {
+        // Next lines - decreasing opacity as they get further away
+        opacity = 0.6 - ((i - currentLineIndex) * 0.1);
+        opacity = max(0.2, opacity); // Don't go below 0.2
+      }
+      
+      visibleLines.add(
+        RichText(
+          text: TextSpan(
+            children: _buildTextSpans(
+              line,
+              i == currentLineIndex ? typedForLine : (i < currentLineIndex ? line : ''),
+              fontSize,
+            ),
+            style: monoTextStyle(
+              fontSize: fontSize,
+              color: Colors.white.withOpacity(opacity),
+              // height: 1.3, // Reduced line height for MonkeyType feel
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Handle automatic scrolling for smooth line transitions
+    if (typingController.shouldAutoScroll.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        typingController.scrollToCurrentLine();
+      });
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Progress counter (smaller and more subtle like MonkeyType)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            "${typed.length}/${targetText.length}",
+            style: monoTextStyle(
+              color: Colors.amber.withOpacity(0.7),
+              fontSize: 14,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4), // Reduced spacing
+
+        // Typing area with proper height calculation
+        SizedBox(
+          height: fontSize * 1.3 * 6, // Height for visible lines (fits up to 6 lines)
+          child: Stack(
+            children: [
+              // Text display area
+              SingleChildScrollView(
+                controller: typingController.scrollController,
+                physics: const NeverScrollableScrollPhysics(), // Disable manual scrolling
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: visibleLines,
+                  ),
+                ),
+              ),
+              
+              // Invisible text field for capturing input
+              Positioned.fill(
+                child: TextField(
+                  controller: typingController.textFieldController,
+                  onChanged: typingController.checkTypedText,
+                  focusNode: _focusNode, // Make sure this is defined in your class
+                  autofocus: true,
+                  cursorColor: Colors.amber.withOpacity(0.7), // MonkeyType-style cursor
+                  cursorWidth: 2,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    filled: false,
+                  ),
+                  style: monoTextStyle(
+                    color: Colors.transparent,
+                    fontSize: fontSize,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  });
+}
+
+List<TextSpan> _buildTextSpans(
+  String targetText,
+  String typed,
+  double fontSize,
+) {
+  List<TextSpan> spans = [];
+
+  for (int i = 0; i < targetText.length; i++) {
+    Color color;
+    Color? backgroundColor;
+    
+    if (i < typed.length) {
+      if (typed[i] != targetText[i]) {
+        // Incorrect character - red with subtle background
+        color = const Color(0xFFe06c75);
+        backgroundColor = const Color(0x30e06c75); // More subtle background
+      } else {
+        // Correct character - white
+        color = Colors.white;
+        backgroundColor = null;
+      }
+    } else if (i == typed.length) {
+      // Current cursor position - amber with subtle background
+      color = Colors.amber;
+      backgroundColor = Colors.white10;
+    } else {
+      // Not typed yet - dimmed
+      color = Colors.white30;
+      backgroundColor = null;
+    }
+
+    spans.add(
+      TextSpan(
+        text: targetText[i],
+        style: monoTextStyle(
+          fontSize: fontSize,
+          color: color,
+        ),
+      ),
+    );
   }
 
+  return spans;
+}
   Widget _buildRestartButton() {
     return IconButton(
       onPressed: () => typingController.restartTest(),

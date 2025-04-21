@@ -22,7 +22,6 @@ class ResultsScreen extends StatelessWidget {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -58,7 +57,7 @@ class ResultsScreen extends StatelessWidget {
         child: Container(
           constraints: const BoxConstraints(maxWidth: 800),
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
+          child: ListView(
             children: [
               const SizedBox(height: 40),
               _buildStatisticsGraph(),
@@ -66,7 +65,7 @@ class ResultsScreen extends StatelessWidget {
               _buildMainStats(),
               const SizedBox(height: 40),
               _buildDetailedStats(),
-              const Spacer(),
+              const SizedBox(height: 40),
               _buildActionButtons(),
               const SizedBox(height: 24),
             ],
@@ -103,15 +102,17 @@ class ResultsScreen extends StatelessWidget {
                 ),
                 child: Text(
                   typingController.wpm.value.toStringAsFixed(0),
-                  style: monoTextStyle(fontSize: 14, color: Colors.black, fontWeight: FontWeight.bold),
+                  style: monoTextStyle(
+                    fontSize: 14,
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Expanded(
-            child: _buildLineChart(),
-          ),
+          Expanded(child: _buildLineChart()),
         ],
       ),
     );
@@ -131,7 +132,7 @@ class ResultsScreen extends StatelessWidget {
     // Prepare data points
     final List<FlSpot> spots = [];
     final maxTime = typingController.testDuration.value.toDouble();
-    
+
     for (int i = 0; i < typingController.wpmHistory.length; i++) {
       final time = typingController.timePoints[i];
       final wpm = typingController.wpmHistory[i];
@@ -145,10 +146,7 @@ class ResultsScreen extends StatelessWidget {
           drawVerticalLine: false,
           horizontalInterval: 25,
           getDrawingHorizontalLine: (value) {
-            return FlLine(
-              color: Colors.white10,
-              strokeWidth: 1,
-            );
+            return FlLine(color: Colors.white10, strokeWidth: 1);
           },
         ),
         titlesData: FlTitlesData(
@@ -194,7 +192,9 @@ class ResultsScreen extends StatelessWidget {
         minX: 0,
         maxX: maxTime,
         minY: 0,
-        maxY: (typingController.wpmHistory.reduce((a, b) => a > b ? a : b) * 1.2).ceilToDouble(),
+        maxY:
+            (typingController.wpmHistory.reduce((a, b) => a > b ? a : b) * 1.2)
+                .ceilToDouble(),
         lineBarsData: [
           LineChartBarData(
             spots: spots,
@@ -202,9 +202,7 @@ class ResultsScreen extends StatelessWidget {
             color: const Color(0xFFE2B714),
             barWidth: 2,
             isStrokeCapRound: true,
-            dotData: FlDotData(
-              show: false,
-            ),
+            dotData: FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
               color: const Color(0xFFE2B714).withOpacity(0.1),
@@ -227,7 +225,8 @@ class ResultsScreen extends StatelessWidget {
               }).toList();
             },
           ),
-          touchCallback: (FlTouchEvent event, LineTouchResponse? touchResponse) {},
+          touchCallback:
+              (FlTouchEvent event, LineTouchResponse? touchResponse) {},
           handleBuiltInTouches: true,
         ),
       ),
@@ -238,9 +237,21 @@ class ResultsScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildStatCard('wpm', typingController.wpm.value.toStringAsFixed(0), isLarge: true),
-        _buildStatCard('acc', '${typingController.accuracy.value.toStringAsFixed(0)}%', isLarge: true),
-        _buildStatCard('time', '${typingController.testDuration.value}s', isLarge: true),
+        _buildStatCard(
+          'wpm',
+          typingController.wpm.value.toStringAsFixed(0),
+          isLarge: true,
+        ),
+        _buildStatCard(
+          'acc',
+          '${typingController.accuracy.value.toStringAsFixed(0)}%',
+          isLarge: true,
+        ),
+        _buildStatCard(
+          'time',
+          '${typingController.testDuration.value}s',
+          isLarge: true,
+        ),
       ],
     );
   }
@@ -294,11 +305,20 @@ class ResultsScreen extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    _buildStatRow('characters', '${typingController.correctChars.value + typingController.incorrectChars.value}'),
+                    _buildStatRow(
+                      'characters',
+                      '${typingController.correctChars.value + typingController.incorrectChars.value}',
+                    ),
                     const SizedBox(height: 8),
-                    _buildStatRow('correct', '${typingController.correctChars.value}'),
+                    _buildStatRow(
+                      'correct',
+                      '${typingController.correctChars.value}',
+                    ),
                     const SizedBox(height: 8),
-                    _buildStatRow('incorrect', '${typingController.incorrectChars.value}'),
+                    _buildStatRow(
+                      'incorrect',
+                      '${typingController.incorrectChars.value}',
+                    ),
                   ],
                 ),
               ),
@@ -306,9 +326,15 @@ class ResultsScreen extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    _buildStatRow('consistency', '${typingController.accuracy.value.toStringAsFixed(0)}%'),
+                    _buildStatRow(
+                      'consistency',
+                      '${typingController.accuracy.value.toStringAsFixed(0)}%',
+                    ),
                     const SizedBox(height: 8),
-                    _buildStatRow('raw', typingController.wpm.value.toStringAsFixed(0)),
+                    _buildStatRow(
+                      'raw',
+                      typingController.wpm.value.toStringAsFixed(0),
+                    ),
                     const SizedBox(height: 8),
                   ],
                 ),
@@ -322,28 +348,26 @@ class ResultsScreen extends StatelessWidget {
 
   Widget _buildStatRow(String label, String value) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        Text(
-          label,
-          style: monoTextStyle(fontSize: 14, color: Colors.white38),
-        ),
-        Text(
-          value,
-          style: monoTextStyle(fontSize: 14, color: Colors.white70),
-        ),
+        Text(label, style: monoTextStyle(fontSize: 14, color: Colors.white38)),
+        Text(value, style: monoTextStyle(fontSize: 14, color: Colors.white70)),
       ],
     );
   }
 
   Widget _buildActionButtons() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildActionButton(Icons.replay, 'restart test', onPressed: () {
-          typingController.restartTest();
-          Get.back();
-        }),
+        _buildActionButton(
+          Icons.replay,
+          'restart test',
+          onPressed: () {
+            typingController.restartTest();
+            Get.back();
+          },
+        ),
         const SizedBox(width: 12),
         _buildActionButton(Icons.share, 'share result'),
         const SizedBox(width: 12),
@@ -352,7 +376,11 @@ class ResultsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton(IconData icon, String label, {VoidCallback? onPressed}) {
+  Widget _buildActionButton(
+    IconData icon,
+    String label, {
+    VoidCallback? onPressed,
+  }) {
     return TextButton(
       onPressed: onPressed ?? () {},
       style: TextButton.styleFrom(

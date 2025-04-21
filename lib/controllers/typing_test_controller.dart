@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/test_mode.dart';
@@ -29,6 +30,8 @@ class TypingTestController extends GetxController {
   var wpm = 0.0.obs;
   var accuracy = 100.0.obs;
   var cursorPosition = 0.obs;
+  final double fontSize = 18.0; // Default font size similar to MonkeyType
+
 
   // Line tracking
   var currentLineIndex = 0.obs;
@@ -44,7 +47,23 @@ class TypingTestController extends GetxController {
   final RxList<double> wpmHistory = <double>[].obs;
   final RxList<double> timePoints = <double>[].obs;
   Timer? _dataCollectionTimer;
+RxBool shouldAutoScroll = false.obs;
 
+void scrollToCurrentLine() {
+  if (!scrollController.hasClients) return;
+  
+  double lineHeight = fontSize * 1.3; // Match the line height from the UI
+  int prevVisibleLines = 1; // How many previous lines to show
+  
+  double targetScroll = max(0, (currentLineIndex.value - prevVisibleLines) * lineHeight);
+  
+  scrollController.animateTo(
+    targetScroll,
+    duration: const Duration(milliseconds: 150),
+    curve: Curves.easeOut,
+  );
+  shouldAutoScroll.value = false;
+}
   @override
   void onInit() {
     super.onInit();
@@ -70,65 +89,64 @@ class TypingTestController extends GetxController {
 
   // Split target text into lines based on width
   void _splitTextIntoLines(String text) {
-    final textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-      text: TextSpan(
-        text: '',
-        style: const TextStyle(
-          fontSize: 24,
-          fontFamily: 'RobotoMono',
-          height: 1.5,
-        ),
+  final textPainter = TextPainter(
+    textDirection: TextDirection.ltr,
+    text: TextSpan(
+      text: '',
+      style: TextStyle(
+        fontSize: fontSize, // Use the MonkeyType-like font size
+        fontFamily: 'RobotoMono',
+        height: 1.3, // Use smaller line height
       ),
-    );
+    ),
+  );
 
-    lines.clear();
-    String currentLine = '';
-    String currentWord = '';
+  lines.clear();
+  String currentLine = '';
+  String currentWord = '';
 
-    // Handle word wrapping more elegantly
-    for (int i = 0; i < text.length; i++) {
-      String char = text[i];
-      currentWord += char;
+  // Handle word wrapping more elegantly
+  for (int i = 0; i < text.length; i++) {
+    String char = text[i];
+    currentWord += char;
 
-      // Check if we have a complete word
-      if (char == ' ' || char == '\n' || i == text.length - 1) {
-        // Try adding the word to the current line
-        String testLine = currentLine + currentWord;
+    // Check if we have a complete word
+    if (char == ' ' || char == '\n' || i == text.length - 1) {
+      // Try adding the word to the current line
+      String testLine = currentLine + currentWord;
 
-        textPainter.text = TextSpan(
-          text: testLine,
-          style: const TextStyle(
-            fontSize: 24,
-            fontFamily: 'RobotoMono',
-            height: 1.5,
-          ),
-        );
+      textPainter.text = TextSpan(
+        text: testLine,
+        style: TextStyle(
+          fontSize: fontSize, // Use the MonkeyType-like font size
+          fontFamily: 'RobotoMono',
+          height: 1.3, // Use smaller line height
+        ),
+      );
 
-        textPainter.layout(maxWidth: containerWidth);
+      textPainter.layout(maxWidth: containerWidth);
 
-        // If word makes line too long and it's not the only word on the line
-        if (textPainter.width > containerWidth && currentLine.isNotEmpty) {
-          // Add the current line to our lines list
-          lines.add(currentLine.trim());
-          // Start a new line with this word
-          currentLine = currentWord;
-        } else {
-          // Word fits, add it to the current line
-          currentLine = testLine;
-        }
-
-        // Reset for next word
-        currentWord = '';
+      // If word makes line too long and it's not the only word on the line
+      if (textPainter.width > containerWidth && currentLine.isNotEmpty) {
+        // Add the current line to our lines list
+        lines.add(currentLine.trim());
+        // Start a new line with this word
+        currentLine = currentWord;
+      } else {
+        // Word fits, add it to the current line
+        currentLine = testLine;
       }
-    }
 
-    // Add any remaining text as the last line
-    if (currentLine.isNotEmpty) {
-      lines.add(currentLine.trim());
+      // Reset for next word
+      currentWord = '';
     }
   }
 
+  // Add any remaining text as the last line
+  if (currentLine.isNotEmpty) {
+    lines.add(currentLine.trim());
+  }
+}
   Future<void> generateNewTest() async {
     typedText.value = '';
     isTestComplete.value = false;
@@ -248,45 +266,47 @@ class TypingTestController extends GetxController {
   }
 
   void checkTypedText(String value) {
-    if (!isTestActive.value && value.isNotEmpty) {
-      startTest();
+  if (!isTestActive.value && value.isNotEmpty) {
+    startTest();
+  }
+
+  if (isTestActive.value && !isTestComplete.value) {
+    int previousLineIndex = currentLineIndex.value;
+    typedText.value = value;
+    cursorPosition.value = value.length;
+
+    // Calculate which line we're on based on typed characters
+    int charsTyped = value.length;
+    int totalChars = 0;
+    int newLineIndex = 0;
+
+    // Find which line contains the cursor
+    for (int i = 0; i < lines.length; i++) {
+      String line = lines[i];
+      totalChars += line.length;
+
+      if (charsTyped <= totalChars) {
+        newLineIndex = i;
+        break;
+      }
+
+      newLineIndex = i;
     }
 
-    if (isTestActive.value && !isTestComplete.value) {
-      typedText.value = value;
-      cursorPosition.value = value.length;
+    // Only update if the line changed
+    if (newLineIndex != currentLineIndex.value) {
+      currentLineIndex.value = newLineIndex;
+      shouldAutoScroll.value = true; // Trigger scroll animation
+    }
 
-      // Calculate which line we're on based on typed characters
-      int charsTyped = value.length;
-      int totalChars = 0;
-      int newLineIndex = 0;
+    _checkAccuracy();
 
-      // Find which line contains the cursor
-      for (int i = 0; i < lines.length; i++) {
-        String line = lines[i];
-        totalChars += line.length;
-
-        if (charsTyped <= totalChars) {
-          newLineIndex = i;
-          break;
-        }
-
-        newLineIndex = i;
-      }
-
-      // Only update if the line changed
-      if (newLineIndex != currentLineIndex.value) {
-        currentLineIndex.value = newLineIndex;
-      }
-
-      _checkAccuracy();
-
-      // Check if we've completed the test
-      if (value.length >= currentText.value.length) {
-        endTest();
-      }
+    // Check if we've completed the test
+    if (value.length >= currentText.value.length) {
+      endTest();
     }
   }
+}
 
   void _checkAccuracy() {
      
