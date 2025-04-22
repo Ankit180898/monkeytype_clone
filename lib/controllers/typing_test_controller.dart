@@ -1,14 +1,14 @@
 import 'dart:async';
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/test_mode.dart';
 import '../services/quote_service.dart';
 
 class TypingTestController extends GetxController {
-  final ScrollController scrollController = ScrollController(
-    keepScrollOffset: true,
-  );
+  late ScrollController scrollController = ScrollController( );
+  
+  
+  Map<int, int> lineStartIndices = {};
 
   // Services
   final QuoteService quoteService = Get.put(QuoteService());
@@ -32,7 +32,6 @@ class TypingTestController extends GetxController {
   var cursorPosition = 0.obs;
   final double fontSize = 18.0; // Default font size similar to MonkeyType
 
-
   // Line tracking
   var currentLineIndex = 0.obs;
   final List<String> lines = [];
@@ -47,23 +46,23 @@ class TypingTestController extends GetxController {
   final RxList<double> wpmHistory = <double>[].obs;
   final RxList<double> timePoints = <double>[].obs;
   Timer? _dataCollectionTimer;
-RxBool shouldAutoScroll = false.obs;
+  RxBool shouldAutoScroll = false.obs;
 
-void scrollToCurrentLine() {
-  if (!scrollController.hasClients) return;
-  
-  double lineHeight = fontSize * 1.3; // Match the line height from the UI
-  int prevVisibleLines = 1; // How many previous lines to show
-  
-  double targetScroll = max(0, (currentLineIndex.value - prevVisibleLines) * lineHeight);
-  
-  scrollController.animateTo(
-    targetScroll,
-    duration: const Duration(milliseconds: 150),
-    curve: Curves.easeOut,
-  );
-  shouldAutoScroll.value = false;
-}
+  void scrollToCurrentLine() {
+    if (scrollController.hasClients) {
+      // Calculate approximate position to scroll to based on line height
+      double lineHeight = 27.0; // Estimated line height
+      double scrollTarget = currentLineIndex.value * lineHeight;
+
+      scrollController.animateTo(
+        scrollTarget,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+      shouldAutoScroll.value = false;
+    }
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -89,64 +88,65 @@ void scrollToCurrentLine() {
 
   // Split target text into lines based on width
   void _splitTextIntoLines(String text) {
-  final textPainter = TextPainter(
-    textDirection: TextDirection.ltr,
-    text: TextSpan(
-      text: '',
-      style: TextStyle(
-        fontSize: fontSize, // Use the MonkeyType-like font size
-        fontFamily: 'RobotoMono',
-        height: 1.3, // Use smaller line height
-      ),
-    ),
-  );
-
-  lines.clear();
-  String currentLine = '';
-  String currentWord = '';
-
-  // Handle word wrapping more elegantly
-  for (int i = 0; i < text.length; i++) {
-    String char = text[i];
-    currentWord += char;
-
-    // Check if we have a complete word
-    if (char == ' ' || char == '\n' || i == text.length - 1) {
-      // Try adding the word to the current line
-      String testLine = currentLine + currentWord;
-
-      textPainter.text = TextSpan(
-        text: testLine,
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+      text: TextSpan(
+        text: '',
         style: TextStyle(
           fontSize: fontSize, // Use the MonkeyType-like font size
           fontFamily: 'RobotoMono',
           height: 1.3, // Use smaller line height
         ),
-      );
+      ),
+    );
 
-      textPainter.layout(maxWidth: containerWidth);
+    lines.clear();
+    String currentLine = '';
+    String currentWord = '';
 
-      // If word makes line too long and it's not the only word on the line
-      if (textPainter.width > containerWidth && currentLine.isNotEmpty) {
-        // Add the current line to our lines list
-        lines.add(currentLine.trim());
-        // Start a new line with this word
-        currentLine = currentWord;
-      } else {
-        // Word fits, add it to the current line
-        currentLine = testLine;
+    // Handle word wrapping more elegantly
+    for (int i = 0; i < text.length; i++) {
+      String char = text[i];
+      currentWord += char;
+
+      // Check if we have a complete word
+      if (char == ' ' || char == '\n' || i == text.length - 1) {
+        // Try adding the word to the current line
+        String testLine = currentLine + currentWord;
+
+        textPainter.text = TextSpan(
+          text: testLine,
+          style: TextStyle(
+            fontSize: fontSize, // Use the MonkeyType-like font size
+            fontFamily: 'RobotoMono',
+            height: 1.3, // Use smaller line height
+          ),
+        );
+
+        textPainter.layout(maxWidth: containerWidth);
+
+        // If word makes line too long and it's not the only word on the line
+        if (textPainter.width > containerWidth && currentLine.isNotEmpty) {
+          // Add the current line to our lines list
+          lines.add(currentLine.trim());
+          // Start a new line with this word
+          currentLine = currentWord;
+        } else {
+          // Word fits, add it to the current line
+          currentLine = testLine;
+        }
+
+        // Reset for next word
+        currentWord = '';
       }
+    }
 
-      // Reset for next word
-      currentWord = '';
+    // Add any remaining text as the last line
+    if (currentLine.isNotEmpty) {
+      lines.add(currentLine.trim());
     }
   }
 
-  // Add any remaining text as the last line
-  if (currentLine.isNotEmpty) {
-    lines.add(currentLine.trim());
-  }
-}
   Future<void> generateNewTest() async {
     typedText.value = '';
     isTestComplete.value = false;
@@ -168,16 +168,60 @@ void scrollToCurrentLine() {
   }
 
   void updateContainerWidth(double width) {
+    // Only recalculate if width changed significantly
     if (containerWidth != width) {
       containerWidth = width;
-      if (currentText.value.isNotEmpty) {
-        initializeLines(currentText.value, containerWidth);
-      }
+      calculateLines();
+    }
+  }
+
+  void calculateLines() {
+    // Break text into lines based on width constraints
+    lines.clear();
+    lineStartIndices.clear();
+
+    // Use TextPainter to calculate where text wraps
+    final TextPainter textPainter = TextPainter(
+      text: TextSpan(
+        text: currentText.value,
+        style: TextStyle(fontFamily: 'RobotoMono', fontSize: 18.0),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+
+    textPainter.layout(maxWidth: containerWidth - 48);
+
+    // Get line breaks
+    List<LineMetrics> lineMetrics = textPainter.computeLineMetrics();
+    int charPosition = 0;
+
+    for (int i = 0; i < lineMetrics.length; i++) {
+      LineMetrics metrics = lineMetrics[i];
+
+      int lineEnd =
+          textPainter
+              .getPositionForOffset(Offset(metrics.width, metrics.baseline))
+              .offset;
+
+      // Extract the line text
+      String lineText = currentText.value.substring(charPosition, lineEnd);
+
+      // Save line and its starting position
+      lines.add(lineText);
+      lineStartIndices[lines.length - 1] = charPosition;
+
+      charPosition = lineEnd;
+    }
+
+    // If there's remaining text
+    if (charPosition < currentText.value.length) {
+      String remainingText = currentText.value.substring(charPosition);
+      lines.add(remainingText);
+      lineStartIndices[lines.length - 1] = charPosition;
     }
   }
 
   Future<void> _generateTextForMode() async {
-    
     switch (testMode.value) {
       case TestMode.punctuation:
         currentText.value = quoteService.generatePunctuationText(
@@ -218,7 +262,6 @@ void scrollToCurrentLine() {
   }
 
   int _getWordCountForLength() {
-     
     switch (selectedLength.value) {
       case 'short':
         return 25;
@@ -253,7 +296,6 @@ void scrollToCurrentLine() {
   }
 
   void _startTimer() {
-     
     _timer?.cancel();
     _timer = Timer.periodic(Duration(seconds: 1), (timer) {
       if (timeLeft.value > 0) {
@@ -266,50 +308,47 @@ void scrollToCurrentLine() {
   }
 
   void checkTypedText(String value) {
-  if (!isTestActive.value && value.isNotEmpty) {
-    startTest();
-  }
+    if (!isTestActive.value && value.isNotEmpty) {
+      startTest();
+    }
 
-  if (isTestActive.value && !isTestComplete.value) {
-    int previousLineIndex = currentLineIndex.value;
-    typedText.value = value;
-    cursorPosition.value = value.length;
+    if (isTestActive.value && !isTestComplete.value) {
+      typedText.value = value;
+      cursorPosition.value = value.length;
 
-    // Calculate which line we're on based on typed characters
-    int charsTyped = value.length;
-    int totalChars = 0;
-    int newLineIndex = 0;
+      // Calculate which line we're on based on typed characters
+      int charsTyped = value.length;
+      int newLineIndex = 0;
 
-    // Find which line contains the cursor
-    for (int i = 0; i < lines.length; i++) {
-      String line = lines[i];
-      totalChars += line.length;
+      // Find which line contains the cursor
+      for (int i = 0; i < lineStartIndices.length; i++) {
+        if (charsTyped >= lineStartIndices[i]!) {
+          newLineIndex = i;
+        } else {
+          break;
+        }
 
-      if (charsTyped <= totalChars) {
         newLineIndex = i;
-        break;
       }
 
-      newLineIndex = i;
-    }
+      // Only update if the line changed
+      if (newLineIndex != currentLineIndex.value) {
+        currentLineIndex.value = newLineIndex;
+        shouldAutoScroll.value = true; // Trigger scroll animation
+      }
 
-    // Only update if the line changed
-    if (newLineIndex != currentLineIndex.value) {
-      currentLineIndex.value = newLineIndex;
-      shouldAutoScroll.value = true; // Trigger scroll animation
-    }
+      _checkAccuracy();
 
-    _checkAccuracy();
+      // Check if we've completed the test
+      if (value.length >= currentText.value.length) {
+        isTestComplete.value = true;
 
-    // Check if we've completed the test
-    if (value.length >= currentText.value.length) {
-      endTest();
+        endTest();
+      }
     }
   }
-}
 
   void _checkAccuracy() {
-     
     String targetText = currentText.value;
     int checkLength = typedText.value.length;
 
@@ -332,7 +371,6 @@ void scrollToCurrentLine() {
   }
 
   void _calculateStats() {
-     
     double minutes = (testDuration.value - timeLeft.value) / 60.0;
     if (minutes > 0) {
       wpm.value = (correctChars.value / 5) / minutes;
@@ -345,7 +383,6 @@ void scrollToCurrentLine() {
   }
 
   void endTest() {
-     
     isTestActive.value = false;
     isTestComplete.value = true;
     _dataCollectionTimer?.cancel();
@@ -356,20 +393,17 @@ void scrollToCurrentLine() {
   }
 
   void restartTest() {
-     
     _timer?.cancel();
     generateNewTest();
   }
 
   void setTestDuration(int seconds) {
-     
     testDuration.value = seconds;
     timeLeft.value = seconds;
     restartTest();
   }
 
   void startDataCollection() {
-     
     wpmHistory.clear();
     timePoints.clear();
 
@@ -388,7 +422,6 @@ void scrollToCurrentLine() {
   }
 
   int _countCorrectChars() {
-     
     int correct = 0;
     String typed = typedText.value;
     String target = currentText.value;
@@ -403,7 +436,6 @@ void scrollToCurrentLine() {
   }
 
   void stopDataCollection() {
-     
     _dataCollectionTimer?.cancel();
     _dataCollectionTimer = null;
   }

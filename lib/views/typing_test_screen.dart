@@ -315,212 +315,217 @@ class TypingTestScreen extends StatelessWidget {
     );
   }
 
-Widget _buildTypingArea(BuildContext context) {
-  // Use smaller font size like MonkeyType
-  final double fontSize = 18.0;
-  
-  return Obx(() {
-    final typingController = Get.find<TypingTestController>();
+  Widget _buildTypingArea(BuildContext context) {
+    // Use smaller font size like MonkeyType
+    final double fontSize = 18.0;
 
-    if (typingController.isTestComplete.value) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        showDialog(context: context, builder: (context) => ResultsScreen());
-      });
-    }
+    return Obx(() {
+      final typingController = Get.find<TypingTestController>();
 
-    String targetText = typingController.currentText.value;
-    String typed = typingController.typedText.value;
-    int currentLineIndex = typingController.currentLineIndex.value;
+      if (typingController.isTestComplete.value) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showDialog(context: context, builder: (context) => ResultsScreen());
+        });
+      }
 
-    // Calculate container width and update controller
-    double containerWidth = MediaQuery.of(context).size.width - 48;
-    typingController.updateContainerWidth(containerWidth);
+      String targetText = typingController.currentText.value;
+      String typed = typingController.typedText.value;
+      int currentLineIndex = typingController.currentLineIndex.value;
 
-    // Handle empty lines case
-    if (typingController.lines.isEmpty && targetText.isNotEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Loading text...",
-            style: TextStyle(color: Colors.white60),
-          ),
-        ],
-      );
-    }
+      // Calculate container width and update controller
+      double containerWidth = MediaQuery.of(context).size.width - 48;
+      typingController.updateContainerWidth(containerWidth);
 
-    // Calculate visible lines like MonkeyType
-    List<Widget> visibleLines = [];
-    
-    // Show more lines like MonkeyType (2 previous, current, 3 next for more context)
-    int firstVisibleLine = max(0, currentLineIndex - 2);
-    int lastVisibleLine = min(typingController.lines.length - 1, currentLineIndex + 3);
-
-    // Calculate starting character indices
-    Map<int, int> lineStartIndices = {};
-    int charCount = 0;
-    
-    for (int i = 0; i < typingController.lines.length; i++) {
-      lineStartIndices[i] = charCount;
-      charCount += typingController.lines[i].length;
-    }
-
-    // Create each visible line with proper styling
-    for (int i = firstVisibleLine; i <= lastVisibleLine; i++) {
-      String line = typingController.lines[i];
-      int lineStartIndex = lineStartIndices[i] ?? 0;
-      
-      // Determine typed text for this line
-      String typedForLine = '';
-      if (typed.length > lineStartIndex) {
-        typedForLine = typed.substring(
-          lineStartIndex,
-          min(typed.length, lineStartIndex + line.length),
+      // Handle empty lines case
+      if (typingController.lines.isEmpty && targetText.isNotEmpty) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Loading text...", style: TextStyle(color: Colors.white60)),
+          ],
         );
       }
 
-      // Calculate opacity based on distance from current line (MonkeyType style)
-      double opacity;
-      if (i == currentLineIndex) {
-        opacity = 0.9; // Current line - most visible
-      } else if (i < currentLineIndex) {
-        opacity = 0.3; // Previous lines - dimmed
-      } else {
-        // Next lines - decreasing opacity as they get further away
-        opacity = 0.6 - ((i - currentLineIndex) * 0.1);
-        opacity = max(0.2, opacity); // Don't go below 0.2
+      // Calculate visible lines like MonkeyType
+      List<Widget> visibleLines = [];
+
+      // Show more lines like MonkeyType (2 previous, current, 3 next for more context)
+      int firstVisibleLine = max(0, currentLineIndex - 2);
+      int lastVisibleLine = min(
+        typingController.lines.length - 1,
+        currentLineIndex + 3,
+      );
+
+      // Calculate starting character indices
+      Map<int, int> lineStartIndices = {};
+      int charCount = 0;
+
+      for (int i = 0; i < typingController.lines.length; i++) {
+        lineStartIndices[i] = charCount;
+        charCount += typingController.lines[i].length;
       }
-      
-      visibleLines.add(
-        RichText(
-          text: TextSpan(
-            children: _buildTextSpans(
-              line,
-              i == currentLineIndex ? typedForLine : (i < currentLineIndex ? line : ''),
-              fontSize,
-            ),
-            style: monoTextStyle(
-              fontSize: fontSize,
-              color: Colors.white.withOpacity(opacity),
-              // height: 1.3, // Reduced line height for MonkeyType feel
+
+      // Create each visible line with proper styling
+      for (int i = firstVisibleLine; i <= lastVisibleLine; i++) {
+        String line = typingController.lines[i];
+        int lineStartIndex = lineStartIndices[i] ?? 0;
+
+        // Determine typed text for this line
+        String typedForLine = '';
+        if (typed.length > lineStartIndex) {
+          typedForLine = typed.substring(
+            lineStartIndex,
+            min(typed.length, lineStartIndex + line.length),
+          );
+        }
+
+        // Calculate opacity based on distance from current line (MonkeyType style)
+        double opacity;
+        if (i == currentLineIndex) {
+          opacity = 0.9; // Current line - most visible
+        } else if (i < currentLineIndex) {
+          opacity = 0.3; // Previous lines - dimmed
+        } else {
+          // Next lines - decreasing opacity as they get further away
+          opacity = 0.6 - ((i - currentLineIndex) * 0.1);
+          opacity = max(0.2, opacity); // Don't go below 0.2
+        }
+
+        visibleLines.add(
+          RichText(
+            text: TextSpan(
+              children: _buildTextSpans(
+                line,
+                i == currentLineIndex
+                    ? typedForLine
+                    : (i < currentLineIndex ? line : ''),
+                fontSize,
+              ),
+              style: monoTextStyle(
+                fontSize: fontSize,
+                color: Colors.white.withOpacity(opacity),
+                // height: 1.3, // Reduced line height for MonkeyType feel
+              ),
             ),
           ),
+        );
+      }
+
+      // Handle automatic scrolling for smooth line transitions
+      if (typingController.shouldAutoScroll.value) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          typingController.scrollToCurrentLine();
+        });
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Progress counter (smaller and more subtle like MonkeyType)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              "${typed.length}/${targetText.length}",
+              style: monoTextStyle(
+                color: Colors.amber.withOpacity(0.7),
+                fontSize: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4), // Reduced spacing
+          // Typing area with proper height calculation
+          SizedBox(
+            height:
+                fontSize *
+                1.3 *
+                6, // Height for visible lines (fits up to 6 lines)
+            child: Stack(
+              children: [
+                // Text display area
+                SingleChildScrollView(
+                  controller: typingController.scrollController,
+                  physics:
+                      const NeverScrollableScrollPhysics(), // Disable manual scrolling
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: visibleLines,
+                    ),
+                  ),
+                ),
+
+                // Invisible text field for capturing input
+                Positioned.fill(
+                  child: TextField(
+                    controller: typingController.textFieldController,
+                    onChanged: typingController.checkTypedText,
+                    focusNode:
+                        _focusNode, // Make sure this is defined in your class
+                    autofocus: true,
+                    cursorColor: Colors.amber.withOpacity(0.7),
+                    showCursor: false, // MonkeyType-style cursor
+                    cursorWidth: 2,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      filled: false,
+                    ),
+                    style: monoTextStyle(
+                      color: Colors.transparent,
+                      fontSize: fontSize,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  List<TextSpan> _buildTextSpans(
+    String targetText,
+    String typed,
+    double fontSize,
+  ) {
+    List<TextSpan> spans = [];
+
+    for (int i = 0; i < targetText.length; i++) {
+      Color color;
+      Color? backgroundColor;
+
+      if (i < typed.length) {
+        if (typed[i] != targetText[i]) {
+          // Incorrect character - red with subtle background
+          color = const Color(0xFFe06c75);
+          backgroundColor = const Color(0x30e06c75); // More subtle background
+        } else {
+          // Correct character - white
+          color = Colors.white;
+          backgroundColor = null;
+        }
+      } else if (i == typed.length) {
+        // Current cursor position - amber with subtle background
+        color = Colors.amber;
+        backgroundColor = Colors.white10;
+      } else {
+        // Not typed yet - dimmed
+        color = Colors.white30;
+        backgroundColor = null;
+      }
+
+      spans.add(
+        TextSpan(
+          text: targetText[i],
+          style: monoTextStyle(fontSize: fontSize, color: color),
         ),
       );
     }
 
-    // Handle automatic scrolling for smooth line transitions
-    if (typingController.shouldAutoScroll.value) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        typingController.scrollToCurrentLine();
-      });
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Progress counter (smaller and more subtle like MonkeyType)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text(
-            "${typed.length}/${targetText.length}",
-            style: monoTextStyle(
-              color: Colors.amber.withOpacity(0.7),
-              fontSize: 14,
-            ),
-          ),
-        ),
-        const SizedBox(height: 4), // Reduced spacing
-
-        // Typing area with proper height calculation
-        SizedBox(
-          height: fontSize * 1.3 * 6, // Height for visible lines (fits up to 6 lines)
-          child: Stack(
-            children: [
-              // Text display area
-              SingleChildScrollView(
-                controller: typingController.scrollController,
-                physics: const NeverScrollableScrollPhysics(), // Disable manual scrolling
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: visibleLines,
-                  ),
-                ),
-              ),
-              
-              // Invisible text field for capturing input
-              Positioned.fill(
-                child: TextField(
-                  controller: typingController.textFieldController,
-                  onChanged: typingController.checkTypedText,
-                  focusNode: _focusNode, // Make sure this is defined in your class
-                  autofocus: true,
-                  cursorColor: Colors.amber.withOpacity(0.7), // MonkeyType-style cursor
-                  cursorWidth: 2,
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    filled: false,
-                  ),
-                  style: monoTextStyle(
-                    color: Colors.transparent,
-                    fontSize: fontSize,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  });
-}
-
-List<TextSpan> _buildTextSpans(
-  String targetText,
-  String typed,
-  double fontSize,
-) {
-  List<TextSpan> spans = [];
-
-  for (int i = 0; i < targetText.length; i++) {
-    Color color;
-    Color? backgroundColor;
-    
-    if (i < typed.length) {
-      if (typed[i] != targetText[i]) {
-        // Incorrect character - red with subtle background
-        color = const Color(0xFFe06c75);
-        backgroundColor = const Color(0x30e06c75); // More subtle background
-      } else {
-        // Correct character - white
-        color = Colors.white;
-        backgroundColor = null;
-      }
-    } else if (i == typed.length) {
-      // Current cursor position - amber with subtle background
-      color = Colors.amber;
-      backgroundColor = Colors.white10;
-    } else {
-      // Not typed yet - dimmed
-      color = Colors.white30;
-      backgroundColor = null;
-    }
-
-    spans.add(
-      TextSpan(
-        text: targetText[i],
-        style: monoTextStyle(
-          fontSize: fontSize,
-          color: color,
-        ),
-      ),
-    );
+    return spans;
   }
 
-  return spans;
-}
   Widget _buildRestartButton() {
     return IconButton(
       onPressed: () => typingController.restartTest(),

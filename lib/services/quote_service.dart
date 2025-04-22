@@ -1,6 +1,5 @@
-// lib/services/quote_service.dart
+
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
 
@@ -12,16 +11,12 @@ class Quote {
 }
 
 class QuoteService extends GetxService {
-  final String apiKey = dotenv.env['API_KEY']!; // Replace with your Rapid API key
-  static const String apiHost = 'quotes15.p.rapidapi.com';
-  static const String apiUrl = 'https://quotes15.p.rapidapi.com/quotes/random/';
+  // No API key needed in the client anymore!
+  static const String proxyUrl = '/.netlify/functions/quote-proxy';
 
   Future<Quote> getRandomQuote() async {
     try {
-      final response = await http.get(
-        Uri.parse(apiUrl),
-        headers: {'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': apiHost},
-      );
+      final response = await http.get(Uri.parse(proxyUrl));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -47,12 +42,9 @@ class QuoteService extends GetxService {
 
   // Method to get quotes with specified criteria (like length)
   Future<Quote> getQuoteByLength(String length) async {
-    // length can be "short", "medium", "long"
     try {
-      // You would need to adapt this to your actual API endpoint
       final response = await http.get(
-        Uri.parse('$apiUrl?length=$length'),
-        headers: {'X-RapidAPI-Key': apiKey, 'X-RapidAPI-Host': apiHost},
+        Uri.parse('$proxyUrl?length=$length'),
       );
 
       if (response.statusCode == 200) {
